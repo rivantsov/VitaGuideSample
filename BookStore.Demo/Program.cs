@@ -1,20 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using Vita.Data;
 using Vita.Data.MsSql;
 using Vita.Entities;
 
-namespace BookStore.Demo
-{
-  class Program
-  {
+namespace BookStore.Demo {
+  class Program  {
+    static string ConnString = @"Data Source=.\MSSQL2017;Initial Catalog=VitaGuideApp;Integrated Security=True";
     static BooksEntityApp _app; 
 
-    static void Main(string[] args)
-    {
+    static void Main(string[] args) {
       try {
         Console.WriteLine("Initializing...");
         Init();
@@ -46,8 +42,6 @@ namespace BookStore.Demo
         bk = session.GetEntity<IBook>(bkId);
         var pubName = bk.Publisher.Name; //Referenced entity is loaded lazily
         Console.WriteLine($" Loaded book by Id, title: '{bk.Title}', published by '{pubName}'");
-
-
       } catch(Exception ex) {
         Console.WriteLine("Error!!!");
         Console.WriteLine(ex.ToString());
@@ -59,10 +53,9 @@ namespace BookStore.Demo
     }
 
     static void Init() {
-      string connString = @"Data Source=.\MSSQL2017;Initial Catalog=VitaGuideApp;Integrated Security=True"; 
       _app = new BooksEntityApp();
       var driver = new MsSqlDbDriver();
-      var dbSettings = new DbSettings(driver, MsSqlDbDriver.DefaultMsSqlDbOptions, connString);
+      var dbSettings = new DbSettings(driver, MsSqlDbDriver.DefaultMsSqlDbOptions, ConnString);
       _app.ConnectTo(dbSettings);
     }
 
