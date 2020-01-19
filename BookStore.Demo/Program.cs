@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 
 using Vita.Data;
@@ -8,6 +9,7 @@ using Vita.Entities;
 namespace BookStore.Demo {
   class Program  {
     static string ConnString = @"Data Source=.\MSSQL2017;Initial Catalog=VitaGuideApp;Integrated Security=True";
+    const string LogFileName = "_bookStore.log"; // find it in bin/debug folder
     static BooksEntityApp _app; 
 
     static void Main(string[] args) {
@@ -42,6 +44,10 @@ namespace BookStore.Demo {
         bk = session.GetEntity<IBook>(bkId);
         var pubName = bk.Publisher.Name; //Referenced entity is loaded lazily
         Console.WriteLine($" Loaded book by Id, title: '{bk.Title}', published by '{pubName}'");
+        
+        // Reading pub.Books list property
+        var pubBooks = bk.Publisher.Books;
+        Console.WriteLine($" Publisher {pubName} book count: {pubBooks.Count}");
       } catch(Exception ex) {
         Console.WriteLine("Error!!!");
         Console.WriteLine(ex.ToString());
@@ -53,7 +59,12 @@ namespace BookStore.Demo {
     }
 
     static void Init() {
+      // clear log
+      if(File.Exists(LogFileName))
+        File.Delete(LogFileName);
+      // create and connect the app
       _app = new BooksEntityApp();
+      _app.LogPath = LogFileName;
       var driver = new MsSqlDbDriver();
       var dbSettings = new DbSettings(driver, MsSqlDbDriver.DefaultMsSqlDbOptions, ConnString);
       _app.ConnectTo(dbSettings);

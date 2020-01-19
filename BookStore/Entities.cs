@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Vita.Entities;
 
 namespace BookStore {
@@ -11,6 +12,9 @@ namespace BookStore {
 
     [Size(100)]
     string Name { get; set; }
+
+    [OrderBy("Title:desc")]
+    IList<IBook> Books { get; }
   }
 
   [Entity]
@@ -24,10 +28,11 @@ namespace BookStore {
 
     BookCategory Category { get; set; }
 
-    [Nullable, Size(200)]
+    [Nullable, Unlimited]
     string Description { get; set; }
 
     int PageCount { get; set; }
+
     decimal Price { get; set; }
 
     IPublisher Publisher { get; set; }
