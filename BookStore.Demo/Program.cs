@@ -20,34 +20,9 @@ namespace BookStore.Demo {
         DeleteAll(); 
         Console.WriteLine("Creating data...");
 
-        var session = _app.OpenSession();
-        var pub = session.NewEntity<IPublisher>();
-        pub.Name = "MS Publishing";
-        var bk = session.NewEntity<IBook>();
-        bk.Title = "c# programming";
-        bk.Category = BookCategory.Programming;
-        bk.PageCount = 350;
-        bk.Price = 19.99m;
-        bk.Publisher = pub;
-        session.SaveChanges();
-        //check book counts
-        var bkCount = session.EntitySet<IBook>().Count();
-        Console.WriteLine($"Done. Create publisher and a book. Book count in db: {bkCount} ");
+        CreateSampleBook();
+        RunLinqDemo(); 
 
-        // once the book is inserted, we have its Id value (it is Identity column);
-        //   the value is returned from Db and put into entity
-        var bkId = bk.Id;
-        Console.WriteLine($" Id of created book: {bkId}");
-
-        // Let's create a new session and retrieve the book
-        session = _app.OpenSession();
-        bk = session.GetEntity<IBook>(bkId);
-        var pubName = bk.Publisher.Name; //Referenced entity is loaded lazily
-        Console.WriteLine($" Loaded book by Id, title: '{bk.Title}', published by '{pubName}'");
-        
-        // Reading pub.Books list property
-        var pubBooks = bk.Publisher.Books;
-        Console.WriteLine($" Publisher {pubName} book count: {pubBooks.Count}");
       } catch(Exception ex) {
         Console.WriteLine("Error!!!");
         Console.WriteLine(ex.ToString());
@@ -58,6 +33,59 @@ namespace BookStore.Demo {
       }
     }
 
+    private static void CreateSampleBook() {
+      var session = _app.OpenSession();
+      // publisher
+      var pub = session.NewPublisher("MS Publishing");
+      // book
+      var bk = pub.NewBook("c# programming", BookCategory.Programming, 350, 19.9m);
+      // author
+      var john = session.NewAuthor("John", "Sharp");
+      var jack = session.NewAuthor("Jack", "Hacker");
+      bk.Authors.Add(john);
+      bk.Authors.Add(jack);
+      session.SaveChanges();
+      //check book counts
+      var bkCount = session.EntitySet<IBook>().Count();
+      Console.WriteLine($"Done. Create publisher and a book. Book count in db: {bkCount} ");
+
+      // once the book is inserted, we have its Id value (it is Identity column);
+      //   the value is returned from Db and put into entity
+      var bkId = bk.Id;
+      Console.WriteLine($" Id of created book: {bkId}");
+
+      // Let's create a new session and retrieve the book
+      session = _app.OpenSession();
+      bk = session.GetEntity<IBook>(bkId);
+      var pubName = bk.Publisher.Name; //Referenced entity is loaded lazily
+      var authors = bk.Authors;
+      Console.WriteLine($" Loaded book by Id, title: '{bk.Title}', published by '{pubName}', {authors.Count} authors.");
+
+      // Reading pub.Books list property
+      var pubBooks = bk.Publisher.Books;
+      Console.WriteLine($" Publisher {pubName} book count: {pubBooks.Count}");
+      var cmd = session.GetLastCommand();
+      var sql = cmd.CommandText; 
+    }
+
+    static void RunLinqDemo() {
+      var session = _app.OpenSession();
+
+      // find inexpensive progr books
+      var cheapBooks = session.EntitySet<IBook>()
+                         .Where(b => b.Price < 20 && b.Category == BookCategory.Programming)
+                         .OrderBy(b => b.Price)
+                         .ToList();
+      // Query using entity refs and lists; find books by "john"
+      var booksByJohn = session.EntitySet<IBook>()
+              .Where(b => b.Authors.Any(a => a.FirstName == "John"))
+              .Select(b => new { b.Title, Publisher = b.Publisher.Name})             
+              .ToList();
+      // Retrieve SQL that was executed
+      var cmd = session.GetLastCommand();
+      var sql = cmd.CommandText;
+    }
+
     static void Init() {
       // clear log
       if(File.Exists(LogFileName))
@@ -65,6 +93,7 @@ namespace BookStore.Demo {
       // create and connect the app
       _app = new BooksEntityApp();
       _app.LogPath = LogFileName;
+      _app.ErrorLogPath = "_errors.log";
       var driver = new MsSqlDbDriver();
       var dbSettings = new DbSettings(driver, MsSqlDbDriver.DefaultMsSqlDbOptions, ConnString);
       _app.ConnectTo(dbSettings);
@@ -72,6 +101,8 @@ namespace BookStore.Demo {
 
     static void DeleteAll() {
       var session = _app.OpenSession();
+      DeleteAll<IBookAuthor>(session);
+      DeleteAll<IAuthor>(session);
       DeleteAll<IBook>(session);
       DeleteAll<IPublisher>(session);
     }

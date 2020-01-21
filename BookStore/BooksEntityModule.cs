@@ -7,7 +7,8 @@ namespace BookStore {
 
   public class BooksEntityModule: EntityModule {
     public BooksEntityModule(EntityArea area): base(area, "BooksModule") {
-      this.RegisterEntities(typeof(IPublisher), typeof(IBook));
+      this.RegisterEntities(typeof(IPublisher), typeof(IBook), 
+                            typeof(IAuthor), typeof(IBookAuthor));
     }
   }
 }
