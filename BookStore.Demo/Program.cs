@@ -21,7 +21,9 @@ namespace BookStore.Demo {
         Console.WriteLine("Creating data...");
 
         CreateSampleBook();
-        RunLinqDemo(); 
+        RunDemo_StepByStep_Linq();
+        RunDemo_LinqQuide();
+        RunDemo_Linq_LinqUpdate(); 
 
       } catch(Exception ex) {
         Console.WriteLine("Error!!!");
@@ -68,7 +70,8 @@ namespace BookStore.Demo {
       var sql = cmd.CommandText; 
     }
 
-    static void RunLinqDemo() {
+    // Step-by-step guide, LINQ section
+    static void RunDemo_StepByStep_Linq() {
       var session = _app.OpenSession();
 
       // find inexpensive progr books
@@ -84,6 +87,62 @@ namespace BookStore.Demo {
       // Retrieve SQL that was executed
       var cmd = session.GetLastCommand();
       var sql = cmd.CommandText;
+    }
+
+    static void RunDemo_LinqQuide() {
+      var session = _app.OpenSession();
+      // Query using entity refs and lists; find books by "john"
+      var booksByJohn = session.EntitySet<IBook>()
+              .Where(b => b.Authors.Any(a => a.FirstName == "John"))
+              .OrderBy(b => b.Price)
+              .Select(b => new { b.Title, Publisher = b.Publisher.Name })
+              .Skip(0).Take(5) //paging
+              .ToList();
+      // Retrieve SQL that was executed
+      var cmd = session.GetLastCommand();
+      var sql = cmd.CommandText;
+
+      // do the same using SQL-like syntax: 
+      var booksByJohn2 = (
+               from b in session.EntitySet<IBook>()
+               where b.Authors.Any(a => a.FirstName == "John")
+               orderby b.Price
+               select new { b.Title, Publisher = b.Publisher.Name }
+               )
+               .Skip(0).Take(5)
+               .ToList();
+      cmd = session.GetLastCommand();
+
+      var cheapBooks = session.EntitySet<IBook>()
+          .Where(b => b.Price < 10)
+          .ToList();
+
+      var cheapBooksWithPubs = session.EntitySet<IBook>()
+          .Where(b => b.Price < 10)
+          .Select(b => new { Book = b, Pub = b.Publisher})
+          .ToList();
+
+      // group-by and aggregates
+      var bksByCat = session.EntitySet<IBook>()
+           .GroupBy(b => b.Category)
+           .Select(g => new { Category = g.Key, BookCount = g.Count(), 
+                        MaxPrice = g.Max(b => b.Price) })
+           .OrderBy(rec => rec.Category) 
+           .ToList();
+      // aggregate over entire set
+      var progrBooksCount = session.EntitySet<IBook>()
+            .Where(b => b.Category == BookCategory.Programming)
+            .Count();
+
+      // fake group-by to get several aggregates
+      var progrBooksStats = session.EntitySet<IBook>()
+            .Where(b => b.Category == BookCategory.Programming)
+            .GroupBy(b => 0)
+            .Select(g => new { BookCount = g.Count(), MaxPrice = g.Max(b => b.Price) })
+            .ToList();
+    }
+
+    static void RunDemo_Linq_LinqUpdate() {
     }
 
     static void Init() {
