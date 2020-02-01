@@ -24,6 +24,7 @@ namespace BookStore.Demo {
         RunDemo_CreateUpdateDelete();
         RunDemo_StepByStep_Linq();
         RunDemo_LinqQuide();
+        RunDemo_LinqInclude();
         RunDemo_Linq_LinqUpdate(); 
 
       } catch(Exception ex) {
@@ -76,15 +77,15 @@ namespace BookStore.Demo {
     static void RunDemo_CreateUpdateDelete() {
       var session = _app.OpenSession();
       // find publisher - needed to create a book
-      var pub = session.EntitySet<IPublisher>().First(); 
+      var pub = session.EntitySet<IPublisher>().First();
       // book
-      var bk = pub.NewBook("Linux programming", BookCategory.Programming, 350, 19.9m);
+      var bk = pub.NewBook("Linux programming", BookCategory.Programming, 520, 24.99m);
       session.SaveChanges();
 
       var bkId = bk.Id;
       session = _app.OpenSession(); // open fresh session
       bk = session.GetEntity<IBook>(bkId);
-      bk.Description = "Linux hacker guide";
+      bk.Description = "Hacker's handbook";
       session.SaveChanges();
 
       // delete it
@@ -164,26 +165,63 @@ namespace BookStore.Demo {
             .Select(g => new { BookCount = g.Count(), MaxPrice = g.Max(b => b.Price) })
             .ToList();
 
-      // Includes ------------------------------ 
-      session = _app.OpenSession(); // open fresh session
+    }
+
+    static void RunDemo_LinqInclude() {
+      var session = _app.OpenSession(); // open fresh session
       // Bad way: N+1 problem
       var progBooks = session.EntitySet<IBook>()
               .Where(b => b.Category == BookCategory.Programming)
-              .ToList(); 
+              .ToList();
       foreach(var bk in progBooks)
         Console.WriteLine(bk.Title + ", by " + bk.Publisher.Name); //causes load of Publisher
 
       // Good way, with Include
+      session = _app.OpenSession(); // open fresh session
       var progBooks2 = session.EntitySet<IBook>()
               .Where(b => b.Category == BookCategory.Programming)
-              .Include(b => b.Publisher) 
+              .Include(b => b.Publisher)
               .ToList();
       foreach(var bk in progBooks)
         Console.WriteLine(bk.Title + ", by " + bk.Publisher.Name); // no extra db action
 
+      // Best way - combining Includes in auto-object
+      session = _app.OpenSession(); // open fresh session
+      session.LogMessage("Running final Include example"); 
+      var progBooks3 = session.EntitySet<IBook>()
+              .Where(b => b.Category == BookCategory.Programming)
+              .Include(b => new { b.Publisher, b.Authors })
+              .ToList();
     }
 
     static void RunDemo_Linq_LinqUpdate() {
+      var session = _app.OpenSession();
+      IPublisher pub1 = session.EntitySet<IPublisher>().First();
+      IPublisher pub2 = session.NewPublisher("Other publisher");
+      session.SaveChanges(); 
+      
+      // Inserts
+      var booksToCopy = session.EntitySet<IBook>()
+            .Where(b => b.Publisher == pub1)
+            .Select(b => new {b.Category, b.Title, b.Description, b.Price, 
+                              b.PageCount, Publisher_Id = pub2.Id });
+      session.ExecuteInsert<IBook>(booksToCopy);
+
+      // Updates 
+      var updateQuery = session.EntitySet<IBook>()
+             .Where(b => b.Category == BookCategory.Programming)
+             .Select(b => new { b.Id, Price = b.Price * 0.9m });
+      session.ExecuteUpdate<IBook>(updateQuery);
+
+      // Delete 
+      var delQuery = session.EntitySet<IBook>()
+                     .Where(b => b.Price > 20);
+      session.ExecuteDelete<IBook>(delQuery);
+      // other variant - output PK only
+      var delQuery2 = session.EntitySet<IBook>()
+                     .Where(b => b.Price > 20)
+                     .Select(b => b.Id);
+      session.ExecuteDelete<IBook>(delQuery2);
 
     }
 
