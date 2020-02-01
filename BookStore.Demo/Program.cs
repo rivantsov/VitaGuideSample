@@ -21,6 +21,7 @@ namespace BookStore.Demo {
         Console.WriteLine("Creating data...");
 
         CreateSampleBook();
+        RunDemo_CreateUpdateDelete();
         RunDemo_StepByStep_Linq();
         RunDemo_LinqQuide();
         RunDemo_Linq_LinqUpdate(); 
@@ -47,6 +48,7 @@ namespace BookStore.Demo {
       bk.Authors.Add(john);
       bk.Authors.Add(jack);
       session.SaveChanges();
+
       //check book counts
       var bkCount = session.EntitySet<IBook>().Count();
       Console.WriteLine($"Done. Create publisher and a book. Book count in db: {bkCount} ");
@@ -67,7 +69,28 @@ namespace BookStore.Demo {
       var pubBooks = bk.Publisher.Books;
       Console.WriteLine($" Publisher {pubName} book count: {pubBooks.Count}");
       var cmd = session.GetLastCommand();
-      var sql = cmd.CommandText; 
+      var sql = cmd.CommandText;
+
+    }
+
+    static void RunDemo_CreateUpdateDelete() {
+      var session = _app.OpenSession();
+      // find publisher - needed to create a book
+      var pub = session.EntitySet<IPublisher>().First(); 
+      // book
+      var bk = pub.NewBook("Linux programming", BookCategory.Programming, 350, 19.9m);
+      session.SaveChanges();
+
+      var bkId = bk.Id;
+      session = _app.OpenSession(); // open fresh session
+      bk = session.GetEntity<IBook>(bkId);
+      bk.Description = "Linux hacker guide";
+      session.SaveChanges();
+
+      // delete it
+      session.DeleteEntity(bk);
+      session.SaveChanges(); 
+
     }
 
     // Step-by-step guide, LINQ section
@@ -140,9 +163,28 @@ namespace BookStore.Demo {
             .GroupBy(b => 0)
             .Select(g => new { BookCount = g.Count(), MaxPrice = g.Max(b => b.Price) })
             .ToList();
+
+      // Includes ------------------------------ 
+      session = _app.OpenSession(); // open fresh session
+      // Bad way: N+1 problem
+      var progBooks = session.EntitySet<IBook>()
+              .Where(b => b.Category == BookCategory.Programming)
+              .ToList(); 
+      foreach(var bk in progBooks)
+        Console.WriteLine(bk.Title + ", by " + bk.Publisher.Name); //causes load of Publisher
+
+      // Good way, with Include
+      var progBooks2 = session.EntitySet<IBook>()
+              .Where(b => b.Category == BookCategory.Programming)
+              .Include(b => b.Publisher) 
+              .ToList();
+      foreach(var bk in progBooks)
+        Console.WriteLine(bk.Title + ", by " + bk.Publisher.Name); // no extra db action
+
     }
 
     static void RunDemo_Linq_LinqUpdate() {
+
     }
 
     static void Init() {
